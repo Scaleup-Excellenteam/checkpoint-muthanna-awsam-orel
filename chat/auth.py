@@ -12,10 +12,10 @@ import time
 from contextlib import closing
 from pathlib import Path
 
-from .config import AUTHENTICATION, LIMITS
+from .config import AUTHENTICATION, LIMITS, STORAGE, project_path
 from .dlp import BLOCK_SECONDS, POST_BLOCK_CARRYOVER, USAGE_LIMIT
 
-DEFAULT_USERS_DB = Path(__file__).resolve().parent.parent / "data" / "users.db"
+DEFAULT_USERS_DB = project_path(STORAGE["users_database"])
 PASSWORD_ITERATIONS = AUTHENTICATION["pbkdf2_iterations"]
 LEGACY_PASSWORD_ITERATIONS = AUTHENTICATION["legacy_pbkdf2_iterations"]
 SALT_BYTES = AUTHENTICATION["salt_bytes"]

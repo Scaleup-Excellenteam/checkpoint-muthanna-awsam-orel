@@ -4,7 +4,7 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 
-from chat.auth import UserStore
+from chat.auth import LEGACY_PASSWORD_ITERATIONS, UserStore, password_hash
 
 
 class AuthenticationTests(unittest.TestCase):
@@ -45,6 +45,28 @@ class AuthenticationTests(unittest.TestCase):
     def test_eight_character_password_is_allowed(self):
         self.store.create_user("EightChar", "12345678")
         self.assertTrue(self.store.authenticate("EightChar", "12345678"))
+
+    def test_account_created_before_iteration_column_still_authenticates(self):
+        legacy_path = Path(self.directory.name) / "legacy-users.db"
+        password = "legacy password"
+        salt = b"legacy-test-salt"
+        digest = password_hash(password, salt, LEGACY_PASSWORD_ITERATIONS)
+        with closing(sqlite3.connect(legacy_path)) as connection:
+            connection.execute(
+                "CREATE TABLE users "
+                "(username TEXT PRIMARY KEY, salt BLOB NOT NULL, "
+                "password_hash BLOB NOT NULL, blocked_until REAL NOT NULL DEFAULT 0, "
+                "dlp_carryover INTEGER NOT NULL DEFAULT 0)"
+            )
+            connection.execute(
+                "INSERT INTO users VALUES (?, ?, ?, 0, 0)",
+                ("LegacyUser", salt, digest),
+            )
+            connection.commit()
+
+        migrated = UserStore(legacy_path)
+
+        self.assertTrue(migrated.authenticate("LegacyUser", password))
 
 
 if __name__ == "__main__":

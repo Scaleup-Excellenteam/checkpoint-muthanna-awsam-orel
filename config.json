@@ -23,6 +23,10 @@
     "legacy_pbkdf2_iterations": 600000,
     "salt_bytes": 16
   },
+  "storage": {
+    "users_database": "data/users.db",
+    "server_log": "data/server.log"
+  },
   "dlp": {
     "usage_fraction": 0.7,
     "block_minutes": 10,

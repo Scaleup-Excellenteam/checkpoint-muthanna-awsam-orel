@@ -16,11 +16,13 @@ chat/
     client.py          Interactive registration, login, and chat client
     api.py             REST API and health endpoint
     auth.py            User accounts, authentication, and persistent block state
+    config.py          Configuration loading and validation
     dlp.py             Server-side DLP policy and normalization
     reputation.py      VirusTotal IP reputation checks and cache
     protocol.py        UTF-8 framing and size limits
     transport.py       TLS configuration
 tests/                 Automated tests and test helpers
+config.json            Editable application settings and DLP policy
 data/                  Runtime database and logs; excluded from Git
 README.md              Setup and usage instructions
 .gitignore             Runtime and secret-file exclusions
@@ -55,6 +57,37 @@ case-sensitive. Passwords must contain at least 8 characters and no more than
 
 The default chat address is `127.0.0.1:55555`. The REST API is available at
 `http://127.0.0.1:8000`.
+
+## Configuration
+
+All operational limits and durations are stored in `config.json`. Edit that one
+file and restart the server and clients to apply a change. Command-line `--host`,
+`--port`, and `--api-port` arguments override the corresponding network defaults
+for that process.
+
+| Section | Controls |
+| --- | --- |
+| `network` | Host, TCP and API ports, timeouts, generated room size, API version |
+| `limits` | Message, room, authentication, username, and password limits |
+| `authentication` | PBKDF2 work factor and salt size |
+| `storage` | SQLite database and internal log paths |
+| `dlp` | Vocabulary, quota fractions, block duration, and public block template |
+| `anti_bot` | VirusTotal timeout, cache duration, threshold, and endpoint |
+| `tls` | Minimum accepted TLS version |
+
+The configuration is validated during startup. Missing fields, invalid ranges,
+duplicate DLP terms, and broken message templates stop startup with a clear
+error instead of silently applying an invalid value. Keep `{minutes}` in the DLP
+public-message template and `{address}` in the VirusTotal URL template.
+
+`legacy_pbkdf2_iterations` records the work factor used by databases created by
+older versions of this project. Leave it unchanged when upgrading an existing
+database. New accounts use `pbkdf2_iterations`, and each account stores its own
+work factor so future changes do not break existing passwords.
+
+The VirusTotal API key remains in the `VIRUSTOTAL_API_KEY` environment variable
+and is deliberately excluded from `config.json` so it is not committed as a
+secret.
 
 ## REST API and health check
 

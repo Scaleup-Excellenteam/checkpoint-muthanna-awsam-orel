@@ -1,11 +1,14 @@
 import sqlite3
 import tempfile
 import unittest
+import math
 from contextlib import closing
 from pathlib import Path
 
 from chat.auth import UserStore
+from chat.config import DLP
 from chat.dlp import (
+    BLOCK_SECONDS,
     IMMEDIATE_BLOCK_WORD,
     PIZZA_WORDS,
     POST_BLOCK_CARRYOVER,
@@ -36,9 +39,14 @@ class DlpTests(unittest.TestCase):
         self.assertIn("פיצה", normalize_words("פִּיצָה!"))
 
     def test_limit_is_seventy_percent_of_the_server_list(self):
-        self.assertEqual(len(PIZZA_WORDS), 30)
-        self.assertEqual(USAGE_LIMIT, 21)
-        self.assertEqual(POST_BLOCK_CARRYOVER, 11)
+        self.assertEqual(
+            USAGE_LIMIT,
+            math.floor(len(PIZZA_WORDS) * DLP["usage_fraction"]),
+        )
+        self.assertEqual(
+            POST_BLOCK_CARRYOVER,
+            math.ceil(USAGE_LIMIT * DLP["post_block_fraction"]),
+        )
 
     def test_distinct_usage_blocks_on_word_22_and_persists(self):
         terms = sorted(PIZZA_WORDS - {IMMEDIATE_BLOCK_WORD})
@@ -60,9 +68,9 @@ class DlpTests(unittest.TestCase):
         reopened = UserStore(self.path, clock=lambda: self.now[0])
         authenticated, remaining = reopened.login_status("DlpUser", self.PASSWORD)
         self.assertFalse(authenticated)
-        self.assertEqual(remaining, 600)
+        self.assertEqual(remaining, BLOCK_SECONDS)
 
-        self.now[0] += 601
+        self.now[0] += BLOCK_SECONDS + 1
         authenticated, remaining = reopened.login_status("DlpUser", self.PASSWORD)
         self.assertTrue(authenticated)
         self.assertEqual(remaining, 0)
@@ -76,7 +84,7 @@ class DlpTests(unittest.TestCase):
         )
         self.assertTrue(result["blocked"])
         self.assertEqual(result["reason"], "immediate_word")
-        self.assertEqual(result["blocked_until"], 1_600.0)
+        self.assertEqual(result["blocked_until"], self.now[0] + BLOCK_SECONDS)
 
     def test_existing_database_is_migrated(self):
         old_path = Path(self.directory.name) / "old-users.db"

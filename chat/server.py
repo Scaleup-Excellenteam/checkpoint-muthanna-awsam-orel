@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .auth import DEFAULT_USERS_DB, UserStore, valid_username
 from .api import create_api_server
-from .config import LIMITS, NETWORK
+from .config import LIMITS, NETWORK, STORAGE, project_path
 from .dlp import (
     BLOCK_SECONDS,
     PUBLIC_BLOCK_MESSAGE,
@@ -33,6 +33,7 @@ HANDSHAKE_TIMEOUT = NETWORK["handshake_timeout_seconds"]
 ROOM_PATTERN = re.compile(
     rf"[A-Za-z0-9_-]{{{LIMITS['room_min_characters']},{LIMITS['room_bytes']}}}\Z"
 )
+DEFAULT_LOG_FILE = project_path(STORAGE["server_log"])
 
 # Each connected socket belongs to one room code.
 active_clients = {}
@@ -258,12 +259,15 @@ def start_server(
     users_db=DEFAULT_USERS_DB,
     certfile=None,
     keyfile=None,
+    log_file=DEFAULT_LOG_FILE,
 ):
     tls_context = server_context(host, certfile, keyfile)
     user_store = UserStore(users_db)
     reputation_checker = VirusTotalChecker()
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        filename=Path(users_db).resolve().parent / "server.log",
+        filename=log_path,
         format="%(asctime)s - %(levelname)s - %(message)s",
         level=logging.INFO,
     )
@@ -310,10 +314,19 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--api-port", type=int, default=API_PORT)
     parser.add_argument("--users-db", default=DEFAULT_USERS_DB)
+    parser.add_argument("--log-file", default=DEFAULT_LOG_FILE)
     parser.add_argument("--cert", help="TLS server certificate (PEM)")
     parser.add_argument("--key", help="TLS private key (PEM)")
     args = parser.parse_args()
     try:
-        start_server(args.host, args.port, args.api_port, args.users_db, args.cert, args.key)
+        start_server(
+            args.host,
+            args.port,
+            args.api_port,
+            args.users_db,
+            args.cert,
+            args.key,
+            args.log_file,
+        )
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.error(str(error))

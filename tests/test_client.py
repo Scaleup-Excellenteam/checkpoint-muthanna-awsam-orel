@@ -11,7 +11,7 @@ from unittest.mock import patch
 from chat import server as chat_server
 from chat import client
 from chat.auth import UserStore
-from chat.protocol import send_message
+from chat.protocol import MAX_MESSAGE_BYTES, send_message
 from tests.helpers import read_messages
 
 
@@ -19,7 +19,9 @@ class ClientIntegrationTests(unittest.TestCase):
     def test_interactive_client_authenticates_and_recovers_from_large_input(self):
         self.check_client_flow(
             ["2", "Alice", "room-a", "x" * 4097, "hello", "exit", "3"],
-            sender="Alice", connections=2, feedback="Message exceeds 4096 bytes",
+            sender="Alice",
+            connections=2,
+            feedback=f"Message exceeds {MAX_MESSAGE_BYTES} bytes",
         )
 
     def test_user_can_register_then_login_and_chat(self):

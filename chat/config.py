@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_PATH = PROJECT_ROOT / "config.json"
 
 
 def _require_mapping(config, name):
@@ -67,6 +68,10 @@ def validate_config(config):
     _require_integer(authentication, "legacy_pbkdf2_iterations", 1)
     _require_integer(authentication, "salt_bytes", 1)
 
+    storage = _require_mapping(config, "storage")
+    _require_text(storage, "users_database")
+    _require_text(storage, "server_log")
+
     dlp = _require_mapping(config, "dlp")
     _require_number(dlp, "usage_fraction", 0.01, 1)
     _require_number(dlp, "block_minutes", 0.01)
@@ -111,6 +116,12 @@ CONFIG = load_config()
 NETWORK = CONFIG["network"]
 LIMITS = CONFIG["limits"]
 AUTHENTICATION = CONFIG["authentication"]
+STORAGE = CONFIG["storage"]
 DLP = CONFIG["dlp"]
 ANTI_BOT = CONFIG["anti_bot"]
 TLS = CONFIG["tls"]
+
+
+def project_path(configured_path):
+    path = Path(configured_path)
+    return path if path.is_absolute() else PROJECT_ROOT / path

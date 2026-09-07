@@ -6,7 +6,8 @@ from chat.config import CONFIG, validate_config
 
 class ConfigurationTests(unittest.TestCase):
     def test_current_configuration_is_valid(self):
-        self.assertIs(validate_config(copy.deepcopy(CONFIG)), copy.deepcopy(CONFIG))
+        candidate = copy.deepcopy(CONFIG)
+        self.assertIs(validate_config(candidate), candidate)
 
     def test_invalid_dlp_configuration_has_a_clear_error(self):
         invalid = copy.deepcopy(CONFIG)
