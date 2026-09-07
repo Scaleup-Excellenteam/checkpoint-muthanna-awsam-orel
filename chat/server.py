@@ -1,7 +1,6 @@
 import argparse
 import json
 import logging
-import re
 import socket
 import sqlite3
 import threading
@@ -9,7 +8,7 @@ from pathlib import Path
 
 from .auth import DEFAULT_USERS_DB, UserStore, valid_username
 from .api import create_api_server
-from .config import LIMITS, NETWORK, STORAGE, project_path
+from .config import NETWORK, STORAGE, project_path
 from .dlp import (
     BLOCK_SECONDS,
     PUBLIC_BLOCK_MESSAGE,
@@ -18,7 +17,7 @@ from .dlp import (
 )
 from .protocol import (
     MAX_AUTH_BYTES, MAX_MESSAGE_BYTES, MAX_ROOM_BYTES,
-    ProtocolError, read_message, send_message,
+    ProtocolError, read_message, send_message, valid_room,
 )
 from .transport import server_context
 from .reputation import VirusTotalChecker
@@ -30,14 +29,18 @@ HOST = NETWORK["host"]
 PORT = NETWORK["chat_port"]
 API_PORT = NETWORK["api_port"]
 HANDSHAKE_TIMEOUT = NETWORK["handshake_timeout_seconds"]
-ROOM_PATTERN = re.compile(
-    rf"[A-Za-z0-9_-]{{{LIMITS['room_min_characters']},{LIMITS['room_bytes']}}}\Z"
-)
 DEFAULT_LOG_FILE = project_path(STORAGE["server_log"])
 
 # Each connected socket belongs to one room code.
 active_clients = {}
 clients_lock = threading.Lock()
+
+
+def list_active_rooms():
+    """Return a stable snapshot for authenticated lobby clients."""
+    with clients_lock:
+        return sorted({session["room"] for session in active_clients.values()})
+
 
 def client_ip(client_socket):
     try:
@@ -64,6 +67,23 @@ def broadcast_message(message, sending_client):
                 except OSError:
                     failed_clients.append(client)
 
+    for client in failed_clients:
+        remove_client(client)
+    return recipients
+
+
+def broadcast_to_room(room, message):
+    """Deliver a web-originated message to connected TCP clients in a room."""
+    failed_clients = []
+    recipients = 0
+    with clients_lock:
+        for client, session in active_clients.items():
+            if session["room"] == room:
+                try:
+                    send_message(client, message)
+                    recipients += 1
+                except OSError:
+                    failed_clients.append(client)
     for client in failed_clients:
         remove_client(client)
     return recipients
@@ -118,7 +138,7 @@ def join_room(client_socket, stream, username):
         send_message(client_socket, "[ERROR] Room code cannot be empty.")
         return False
     room = room.strip()
-    if not ROOM_PATTERN.fullmatch(room):
+    if not valid_room(room):
         send_message(client_socket, "[ERROR] Room code must contain letters, digits, '_' or '-'.")
         return False
     with clients_lock:
@@ -144,7 +164,14 @@ def disconnect_account(username):
         remove_client(client)
 
 
-def handle_client(client_socket, user_store, tls_context=None, reputation_checker=None):
+def handle_client(
+    client_socket,
+    user_store,
+    tls_context=None,
+    reputation_checker=None,
+    web_message_sink=None,
+    web_block_handler=None,
+):
     """Authenticate first, select a room, then accept bounded chat messages."""
     try:
         reputation_checker = reputation_checker or VirusTotalChecker()
@@ -205,8 +232,12 @@ def handle_client(client_socket, user_store, tls_context=None, reputation_checke
                         ",".join(sorted(matched_words)) or "none",
                     )
                     disconnect_account(username)
+                    if web_block_handler is not None:
+                        web_block_handler(username)
                     return
                 recipients = broadcast_message(f"{username}: {message}", client_socket)
+                if web_message_sink is not None:
+                    recipients += web_message_sink(room, username, message)
                 logger.info(
                     "event=message username=%s room=%s bytes=%d matched=%s "
                     "new_words=%s before=%d after=%d limit=%d verdict=ALLOW "
@@ -272,7 +303,14 @@ def start_server(
         level=logging.INFO,
     )
     api_server = create_api_server(
-        user_store, host, api_port, tls_context, reputation_checker
+        user_store,
+        host,
+        api_port,
+        tls_context,
+        reputation_checker,
+        list_active_rooms,
+        disconnect_account,
+        broadcast_to_room,
     )
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -298,7 +336,14 @@ def start_server(
             print(f"[NEW CONNECTION] Connected with {client_address}")
             thread = threading.Thread(
                 target=handle_client,
-                args=(client_socket, user_store, tls_context, reputation_checker),
+                args=(
+                    client_socket,
+                    user_store,
+                    tls_context,
+                    reputation_checker,
+                    api_server.publish_message,
+                    api_server.revoke_user,
+                ),
                 daemon=True,
             )
             thread.start()

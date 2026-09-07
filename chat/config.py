@@ -71,6 +71,14 @@ def validate_config(config):
     storage = _require_mapping(config, "storage")
     _require_text(storage, "users_database")
     _require_text(storage, "server_log")
+    _require_text(storage, "web_directory")
+
+    web = _require_mapping(config, "web")
+    _require_integer(web, "poll_interval_milliseconds", 100)
+    _require_number(web, "session_minutes", 1)
+    _require_integer(web, "messages_kept_per_room", 1)
+    _require_integer(web, "json_request_overhead_bytes", 1)
+    _require_integer(web, "session_token_bytes", 16)
 
     dlp = _require_mapping(config, "dlp")
     _require_number(dlp, "usage_fraction", 0.01, 1)
@@ -101,6 +109,43 @@ def validate_config(config):
     tls = _require_mapping(config, "tls")
     if _require_text(tls, "minimum_version") not in {"TLSv1_2", "TLSv1_3"}:
         raise ValueError("tls.minimum_version must be TLSv1_2 or TLSv1_3.")
+
+    ui = _require_mapping(config, "ui")
+    for key in (
+        "window_width",
+        "window_height",
+        "minimum_width",
+        "minimum_height",
+        "content_padding",
+        "card_padding",
+        "control_padding",
+        "button_width",
+        "entry_width",
+        "chat_wrap_pixels",
+        "event_poll_milliseconds",
+        "title_font_size",
+        "heading_font_size",
+        "body_font_size",
+        "small_font_size",
+    ):
+        _require_integer(ui, key, 1)
+    _require_number(ui, "network_timeout_seconds", 0.1)
+    _require_number(ui, "close_join_timeout_seconds", 0.1)
+    for key in (
+        "font_family",
+        "background",
+        "surface",
+        "primary",
+        "primary_hover",
+        "text",
+        "muted_text",
+        "border",
+        "incoming_message",
+        "outgoing_message",
+        "error",
+        "success",
+    ):
+        _require_text(ui, key)
     return config
 
 
@@ -117,9 +162,11 @@ NETWORK = CONFIG["network"]
 LIMITS = CONFIG["limits"]
 AUTHENTICATION = CONFIG["authentication"]
 STORAGE = CONFIG["storage"]
+WEB = CONFIG["web"]
 DLP = CONFIG["dlp"]
 ANTI_BOT = CONFIG["anti_bot"]
 TLS = CONFIG["tls"]
+UI = CONFIG["ui"]
 
 
 def project_path(configured_path):

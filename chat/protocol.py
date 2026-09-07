@@ -1,5 +1,6 @@
 """Newline-delimited UTF-8 frames, bounded before decoding or buffering."""
 
+import re
 import unicodedata
 
 from .config import LIMITS
@@ -13,6 +14,9 @@ MAX_SERVER_MESSAGE_BYTES = (
     + LIMITS["username_max_characters"]
     + len(": ".encode("utf-8"))
 )
+ROOM_PATTERN = re.compile(
+    rf"[A-Za-z0-9_-]{{{LIMITS['room_min_characters']},{MAX_ROOM_BYTES}}}\Z"
+)
 
 
 class ProtocolError(ValueError):
@@ -21,6 +25,10 @@ class ProtocolError(ValueError):
 
 class MessageTooLarge(ProtocolError):
     pass
+
+
+def valid_room(room):
+    return isinstance(room, str) and ROOM_PATTERN.fullmatch(room) is not None
 
 
 def validate_text(message):

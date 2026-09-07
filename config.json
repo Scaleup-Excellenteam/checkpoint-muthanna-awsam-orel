@@ -25,7 +25,15 @@
   },
   "storage": {
     "users_database": "data/users.db",
-    "server_log": "data/server.log"
+    "server_log": "data/server.log",
+    "web_directory": "web"
+  },
+  "web": {
+    "poll_interval_milliseconds": 1500,
+    "session_minutes": 480,
+    "messages_kept_per_room": 200,
+    "json_request_overhead_bytes": 512,
+    "session_token_bytes": 32
   },
   "dlp": {
     "usage_fraction": 0.7,
@@ -74,5 +82,36 @@
   },
   "tls": {
     "minimum_version": "TLSv1_2"
+  },
+  "ui": {
+    "window_width": 1100,
+    "window_height": 720,
+    "minimum_width": 860,
+    "minimum_height": 600,
+    "content_padding": 32,
+    "card_padding": 24,
+    "control_padding": 10,
+    "button_width": 18,
+    "entry_width": 34,
+    "chat_wrap_pixels": 720,
+    "event_poll_milliseconds": 100,
+    "network_timeout_seconds": 10,
+    "close_join_timeout_seconds": 1,
+    "font_family": "Segoe UI",
+    "title_font_size": 28,
+    "heading_font_size": 18,
+    "body_font_size": 11,
+    "small_font_size": 9,
+    "background": "#F4F7FB",
+    "surface": "#FFFFFF",
+    "primary": "#4F46E5",
+    "primary_hover": "#4338CA",
+    "text": "#172033",
+    "muted_text": "#667085",
+    "border": "#D8DEE9",
+    "incoming_message": "#EEF2FF",
+    "outgoing_message": "#DCFCE7",
+    "error": "#B42318",
+    "success": "#067647"
   }
 }
