@@ -1,6 +1,10 @@
 import socket
 import threading
 
+import logging
+logging.basicConfig(filename="server.log", format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from protocol import read_messages, send_message
 
 HOST = "10.124.38.204"
@@ -21,6 +25,7 @@ def broadcast_message(message, sending_client):
         for client, client_room in active_clients.items():
             if client != sending_client and client_room == room:
                 try:
+                    logger.info(f"Broadcasting message to {client.getpeername()}: {message}")
                     send_message(client, message)
                 except OSError:
                     failed_clients.append(client)
