@@ -8,6 +8,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_current_configuration_is_valid(self):
         candidate = copy.deepcopy(CONFIG)
         self.assertIs(validate_config(candidate), candidate)
+        self.assertEqual(candidate, CONFIG)
 
     def test_invalid_dlp_configuration_has_a_clear_error(self):
         invalid = copy.deepcopy(CONFIG)

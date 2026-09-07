@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#203c33"><meta name="description" content="Secret Slice — a shared space for your team's conversations.">
+  <title>Secret Slice · Your team's table</title>
+  <link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<section id="welcome" class="welcome">
+  <header class="masthead"><a class="brand" href="/" aria-label="Secret Slice home"><span class="brand-icon">◕</span> secret slice<span class="brand-dot">.</span></a><span class="eyebrow">A LITTLE SPACE FOR YOUR PEOPLE</span></header>
+  <main class="welcome-grid">
+    <div class="intro"><span class="pill"><span class="dot"></span> THE TEAM'S TABLE</span><h1>Big ideas.<br>Small <em>circles.</em></h1><p class="intro-copy">A room for your team. A place for the ideas, plans, and conversations that bring you together.</p>
+      <div class="illustration" aria-hidden="true"><div class="orbit"></div><div class="illustration-card"><span class="avatar rust">A</span><div><strong>A place to start something.</strong><div class="fake-line"></div><div class="fake-line short"></div></div></div><div class="illustration-reply"><span class="little-star">✳</span><strong>Better when we're together.</strong><small>YOUR NEXT CONVERSATION STARTS HERE</small></div><span class="spark">✳</span></div>
+      <div class="intro-bottom"><span>01 / YOUR ACCOUNT</span><span>02 / YOUR ROOM</span><span>03 / YOUR TEAM</span></div>
+    </div>
+    <div class="auth-card"><div class="tabs" role="tablist" aria-label="Account action"><button id="login-tab" role="tab" aria-selected="true" aria-controls="auth-form">Sign in</button><button id="register-tab" role="tab" aria-selected="false" aria-controls="auth-form">Create account</button></div>
+      <h2 id="auth-title">Welcome back.</h2><p id="auth-subtitle" class="muted">Your next conversation is waiting.</p>
+      <form id="auth-form"><label for="username">Username</label><input id="username" name="username" autocomplete="username" placeholder="Your username" required>
+        <div class="label-row"><label for="password">Password</label><span id="password-hint" class="small muted">8+ characters</span></div><div class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required><button id="show-password" type="button" aria-label="Show password">Show</button></div>
+        <div id="confirm-group" hidden><label for="confirm">Confirm password</label><input id="confirm" type="password" autocomplete="new-password" placeholder="One more time"></div>
+        <div id="room-group"><div class="label-row"><label for="room">Room code</label><span class="small muted">OPTIONAL</span></div><input id="room" name="room" placeholder="e.g. the-pizza-table" autocomplete="off"><p class="field-hint">Leave blank to create a new room for your team.</p></div>
+        <button id="auth-submit" class="primary full" type="submit">Join the conversation <span>↗</span></button><p id="auth-notice" class="notice" role="status" aria-live="polite"></p>
+      </form><div class="card-foot"><span>◈</span> Your account. Your own space.</div>
+    </div>
+  </main><footer class="welcome-footer"><span>TSPO / MADE FOR GOOD CONVERSATIONS</span><span>Less noise. More connection. <span class="brand-dot">✳</span></span></footer>
+</section>
+<section id="workspace" class="workspace" hidden>
+  <aside class="sidebar"><a href="/" class="brand">◕ secret slice<span class="brand-dot">.</span></a><span class="sidebar-kicker">THE TEAM'S TABLE</span><div class="sidebar-rule"></div><p class="eyebrow">WORKSPACE</p><div class="nav-active"><span>▤</span> Conversation <span class="dot"></span></div><p class="eyebrow room-caption">YOUR ROOM</p><div id="room-name" class="room-name"></div><button id="copy-room" class="invite">Copy invite code <span>↗</span></button><p class="sidebar-copy">Good company starts<br>with an invitation.</p><div class="sidebar-bottom"><div id="connection" class="connection"><span class="dot"></span> Connected</div><p id="transport" class="sidebar-copy"></p><div class="account"><span id="user-avatar" class="avatar"></span><div><span class="small">SIGNED IN AS</span><strong id="account-name"></strong></div></div><button id="logout" class="signout">Leave room & sign out <span>↗</span></button></div></aside>
+  <main class="conversation"><div class="conversation-top"><span class="eyebrow">WORKSPACE <span class="slash">/</span> CONVERSATION</span><time id="today"></time></div><header class="conversation-heading"><div><h1>At the table<span class="brand-dot">.</span></h1><p class="muted">The ideas, updates, and little things worth sharing.</p></div><span class="room-stamp">◕</span></header>
+    <div id="status" class="status" role="status" aria-live="polite"><span class="dot"></span><span id="status-text">Room connected · Server security checks are active</span></div>
+    <div id="messages" class="messages" role="log" aria-label="Chat messages" aria-live="polite"><div id="empty-chat" class="empty-chat"><span class="empty-icon">✳</span><h2>A good place to begin.</h2><p>Share your room code, invite your people,<br>and say the first hello.</p><span class="small">HISTORY IS KEPT ONLY FOR THIS SESSION</span></div></div>
+    <form id="composer" class="composer"><label class="sr-only" for="message">Message to your room</label><input id="message" placeholder="Something worth sharing?" autocomplete="off" required><button id="send" class="primary" type="submit">Send <span>↗</span></button></form><div class="composer-foot"><span>Enter to send · Submission does not confirm delivery</span><span id="byte-count">0 / 4,096 bytes</span></div>
+  </main>
+</section>
+</body></html>

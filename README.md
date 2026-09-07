@@ -44,6 +44,60 @@ Open another PowerShell window and start a client:
 python -m chat.client
 ```
 
+### Web interface (recommended)
+
+Keep `python -m chat.server` running. In a second terminal in the project root:
+
+```powershell
+python -m chat.web
+```
+
+Open **http://127.0.0.1:8765** in your browser. Create an account, then sign in
+and enter a room code, or leave it blank to generate one. Share the code with
+your teammates. To test two accounts on one computer, use a normal browser
+window and a private/incognito window (ordinary tabs share the same session).
+
+The responsive web UI uses a local Python HTTP bridge to the existing TCP
+server. The server still owns authentication, room routing, DLP, and reputation
+decisions. The bridge binds only to loopback; each teammate runs it locally.
+For a remote TLS chat server, use:
+
+```powershell
+python -m chat.web --host 10.124.38.204 --tls --cafile server.pem
+```
+
+Use `--web-port 8766` if port 8765 is occupied. Browser sessions use HttpOnly,
+SameSite cookies, and requests from other origins are rejected. Passwords are
+not retained by the bridge. A closed browser session expires after two minutes
+without polling. Messages are polled every 700 ms; outgoing bubbles indicate
+submission, not confirmed delivery. Refreshing loses locally displayed history.
+No additional Python packages, npm installation, or build step is required.
+
+### Desktop interface (optional)
+
+For the graphical client, keep the server running and launch:
+
+```powershell
+python -m chat.gui
+```
+
+Create an account, then sign in with a room code (leave it empty to generate one).
+Use **Copy room code** to invite another client. Press Enter or **Send** to submit
+a message. **Leave room / sign out** returns to the login screen. Server security
+notices appear in the conversation; a disconnected session must sign in again.
+Local outgoing messages indicate submission, not confirmed delivery, because the
+existing protocol does not acknowledge individual messages. History is session-only.
+
+The desktop client uses Python's bundled Tkinter and the existing TCP protocol.
+It supports the same `--host`, `--port`, `--tls`, `--cafile`, and
+`--server-hostname` options as the command-line client. For example:
+
+```powershell
+python -m chat.gui --host 10.124.38.204 --tls --cafile server.pem
+```
+
+The server's authentication, DLP policy, and reputation checks remain unchanged.
+
 In the client:
 
 1. Select `1. Register` and create an account.
