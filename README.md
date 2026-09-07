@@ -22,6 +22,7 @@ chat/
     protocol.py        UTF-8 framing and size limits
     transport.py       TLS configuration
 tests/                 Automated tests and test helpers
+web/                   Responsive browser UI (HTML, CSS, and JavaScript)
 config.json            Editable application settings and DLP policy
 data/                  Runtime database and logs; excluded from Git
 README.md              Setup and usage instructions
@@ -37,6 +38,16 @@ Start the server:
 ```powershell
 python -m chat.server
 ```
+
+Open the web application in a browser:
+
+```text
+http://127.0.0.1:8000/
+```
+
+The browser UI supports registration, login, creating a group, joining an
+existing group, group messaging, leaving a group, returning to the group lobby,
+and selecting another group. It is responsive for desktop and mobile screens.
 
 Open another PowerShell window and start a client:
 
@@ -71,6 +82,7 @@ for that process.
 | `limits` | Message, room, authentication, username, and password limits |
 | `authentication` | PBKDF2 work factor and salt size |
 | `storage` | SQLite database and internal log paths |
+| `web` | Browser polling, session lifetime, and room-history size |
 | `dlp` | Vocabulary, quota fractions, block duration, and public block template |
 | `anti_bot` | VirusTotal timeout, cache duration, threshold, and endpoint |
 | `tls` | Minimum accepted TLS version |
@@ -98,7 +110,13 @@ responses are JSON.
 | --- | --- | --- |
 | `GET` | `/health` | Service, database, and Anti-Bot status |
 | `POST` | `/register` | `201` after creating an account |
-| `POST` | `/login` | `200` after successful authentication |
+| `POST` | `/login` | `200` with an authenticated web session token |
+| `GET` | `/rooms` | Available groups for a Bearer-authenticated web user |
+| `POST` | `/rooms` | Create and enter a new group |
+| `POST` | `/rooms/{room}/join` | Join an existing group |
+| `POST` | `/rooms/{room}/leave` | Leave a group and return to the lobby |
+| `GET/POST` | `/rooms/{room}/messages` | Read or send group messages |
+| `POST` | `/logout` | End the current web session |
 
 Check the service:
 
@@ -130,6 +148,10 @@ remaining block time.
 
 The `/health` endpoint is public. IP reputation checks apply to TCP connections,
 `/register`, and `/login`.
+
+Web clients send the token returned by `/login` in the
+`Authorization: Bearer TOKEN` header. The browser UI manages this token in
+session storage and removes it on logout or when a session is rejected.
 
 ## VirusTotal Anti-Bot check
 
@@ -240,6 +262,6 @@ detected.
 ## Current limitations
 
 The server does not rate-limit login attempts or messages. Any authenticated
-user who knows a room code can join that room. Rooms and message history are
-kept in memory only, and a slow receiving client can delay broadcasts while the
-shared send lock is held.
+user who knows a room code can join that room. Rooms, web sessions, and the
+configured amount of recent message history are kept in memory only. A slow
+receiving TCP client can delay broadcasts while the shared send lock is held.

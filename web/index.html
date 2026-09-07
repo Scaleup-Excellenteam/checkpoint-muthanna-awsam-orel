@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2b1914">
+  <title>Slice Talk — הצ׳אט של חובבי הפיצה</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <main id="app" class="app-shell">
+    <section id="auth-screen" class="screen auth-screen">
+      <div class="auth-intro">
+        <a class="brand brand-light" href="/" aria-label="Slice Talk">
+          <span class="brand-mark" aria-hidden="true">🍕</span>
+          <span>Slice Talk</span>
+        </a>
+        <div class="intro-copy">
+          <span class="eyebrow">הקהילה הכי טעימה ברשת</span>
+          <h1>מדברים פיצה.<br>פרוסה אחר פרוסה.</h1>
+          <p>המקום להתווכח על תוספות, להסתיר את המתכון הסודי ולגלות את הפיצה הבאה שלא תפסיקו לדבר עליה.</p>
+        </div>
+      </div>
+
+      <div class="auth-panel">
+        <div class="mobile-brand">
+          <span class="brand-mark" aria-hidden="true">🍕</span>
+          <strong>Slice Talk</strong>
+        </div>
+        <div class="auth-card">
+          <div class="auth-heading">
+            <span class="eyebrow dark">ברוכים הבאים לפיצרייה</span>
+            <h2 id="auth-title">נכנסים ל־Slice Talk</h2>
+            <p id="auth-subtitle">התחברו וגלו על מה חובבי הפיצה מדברים עכשיו.</p>
+          </div>
+
+          <div class="auth-tabs" role="tablist" aria-label="בחירת פעולה">
+            <button id="login-tab" class="tab active" type="button" role="tab" aria-selected="true">התחברות</button>
+            <button id="register-tab" class="tab" type="button" role="tab" aria-selected="false">הרשמה</button>
+          </div>
+
+          <form id="auth-form" novalidate>
+            <label for="username">שם משתמש</label>
+            <div class="field-wrap">
+              <span class="field-icon" aria-hidden="true">◎</span>
+              <input id="username" name="username" autocomplete="username" required placeholder="לדוגמה: Orel">
+            </div>
+
+            <label for="password">סיסמה</label>
+            <div class="field-wrap">
+              <span class="field-icon" aria-hidden="true">◇</span>
+              <input id="password" name="password" type="password" autocomplete="current-password" required
+                placeholder="הסיסמה שלכם">
+              <button id="toggle-password" class="icon-button" type="button" aria-label="הצגת סיסמה">◉</button>
+            </div>
+
+            <label id="confirm-label" class="hidden" for="confirm-password">אימות סיסמה</label>
+            <div id="confirm-wrap" class="field-wrap hidden">
+              <span class="field-icon" aria-hidden="true">◇</span>
+              <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password"
+                placeholder="הקלידו שוב">
+            </div>
+
+            <p id="auth-error" class="form-message error hidden" role="alert"></p>
+            <p id="auth-success" class="form-message success hidden" role="status"></p>
+            <button id="auth-submit" class="primary-button full" type="submit">כניסה לקהילה</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="home-screen" class="screen workspace hidden">
+      <header class="topbar">
+        <a class="brand" href="#pizza-tables" aria-label="חזרה לשולחנות הפיצה">
+          <span class="brand-mark" aria-hidden="true">🍕</span>
+          <span>Slice Talk</span>
+        </a>
+        <div class="account-area">
+          <div class="avatar" id="home-avatar">U</div>
+          <div class="account-copy"><strong id="home-username"></strong><span>מחובר/ת עכשיו</span></div>
+          <button id="logout-button" class="ghost-button" type="button">התנתקות</button>
+        </div>
+      </header>
+
+      <div class="workspace-content">
+        <section class="welcome-block">
+          <div>
+            <span class="eyebrow dark">הלובי של Slice Talk</span>
+            <h1>על איזו פיצה מדברים היום?</h1>
+            <p>הצטרפו לשולחן קיים או פתחו שולחן חדש לנושא שמעניין אתכם.</p>
+          </div>
+          <button id="refresh-rooms" class="ghost-button refresh" type="button">↻ רענון</button>
+        </section>
+
+        <section class="action-grid">
+          <article class="action-card create-card">
+            <div class="action-icon">🍕</div>
+            <div>
+              <h2>פתיחת שולחן חדש</h2>
+              <p>בחרו קוד קצר והזמינו חובבי פיצה לשיחה.</p>
+            </div>
+            <form id="create-room-form" class="inline-form">
+              <input id="new-room" required aria-label="קוד שולחן פיצה חדש" placeholder="neapolitan-fans">
+              <button class="primary-button" type="submit">פתיחת שולחן</button>
+            </form>
+            <p id="create-error" class="form-message error hidden" role="alert"></p>
+          </article>
+
+          <article class="action-card join-card">
+            <div class="action-icon tomato">#</div>
+            <div>
+              <h2>יש לכם קוד לשולחן?</h2>
+              <p>הכניסו אותו וקפצו ישר לשיחת הפיצה.</p>
+            </div>
+            <form id="join-room-form" class="inline-form">
+              <input id="join-room" required aria-label="קוד שולחן קיים" placeholder="pizza-table">
+              <button class="secondary-button" type="submit">הצטרפות</button>
+            </form>
+            <p id="join-error" class="form-message error hidden" role="alert"></p>
+          </article>
+        </section>
+
+        <section class="rooms-section">
+          <div class="section-title">
+            <div>
+              <h2>שולחנות פיצה פעילים</h2>
+              <p>בחרו נושא, תפסו כיסא והצטרפו לשיחה</p>
+            </div><span id="room-count" class="count-pill">0 שולחנות</span>
+          </div>
+          <div id="rooms-grid" class="rooms-grid" aria-live="polite"></div>
+          <div id="rooms-empty" class="empty-state hidden">
+            <div class="empty-illustration" aria-hidden="true">🍕</div>
+            <h3>התנור עוד מתחמם</h3>
+            <p>פתחו את שולחן הפיצה הראשון והתחילו לדבר.</p>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="chat-screen" class="screen workspace chat-workspace hidden">
+      <header class="topbar chat-topbar">
+        <div class="chat-heading">
+          <button id="back-to-groups" class="back-button" type="button" aria-label="חזרה לכל שולחנות הפיצה">→</button>
+          <div class="room-symbol">🍕</div>
+          <div>
+            <h1 id="chat-room-name"></h1><span id="chat-room-meta">שולחן פיצה פעיל</span>
+          </div>
+        </div>
+        <div class="account-area compact">
+          <div class="avatar" id="chat-avatar">U</div>
+          <strong id="chat-username"></strong>
+        </div>
+      </header>
+
+      <div class="chat-layout">
+        <aside class="chat-aside">
+          <span class="eyebrow dark">שולחן הפיצה</span>
+          <h2 id="aside-room-name"></h2>
+          <p>מקום לשתף המלצות, מתכונים ודעות לוהטות מהתנור.</p>
+          <div class="aside-status"><span class="online-dot"></span><span>התנור חם והשיחה פעילה</span></div>
+          <button id="aside-back" class="ghost-button full" type="button">חזרה לכל השולחנות</button>
+        </aside>
+
+        <section class="conversation" aria-label="שיחה של חובבי פיצה">
+          <div id="messages" class="messages" aria-live="polite" aria-relevant="additions">
+            <div id="chat-empty" class="chat-empty"><span>🍕</span>
+              <h2>הפרוסה הראשונה מחכה לכם</h2>
+              <p>כתבו את הודעת הפיצה הראשונה בשולחן.</p>
+            </div>
+          </div>
+          <form id="message-form" class="composer">
+            <textarea id="message-input" rows="1" required aria-label="כתיבת הודעה"
+              placeholder="מה דעתכם על הפיצה?... "></textarea>
+            <div class="composer-actions">
+              <span id="message-size">0 bytes</span>
+              <button class="send-button" type="submit" aria-label="שליחת הודעה">שליחה <span>←</span></button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+
+</html>
