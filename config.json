@@ -1,0 +1,74 @@
+{
+  "network": {
+    "host": "127.0.0.1",
+    "chat_port": 55555,
+    "api_port": 8000,
+    "handshake_timeout_seconds": 10,
+    "client_thread_join_timeout_seconds": 2,
+    "generated_room_token_bytes": 12,
+    "api_server_version": "ChatAPI/1.0"
+  },
+  "limits": {
+    "message_bytes": 4096,
+    "room_min_characters": 1,
+    "room_bytes": 64,
+    "auth_bytes": 2048,
+    "username_min_characters": 3,
+    "username_max_characters": 32,
+    "password_min_characters": 8,
+    "password_max_utf8_bytes": 256
+  },
+  "authentication": {
+    "pbkdf2_iterations": 600000,
+    "legacy_pbkdf2_iterations": 600000,
+    "salt_bytes": 16
+  },
+  "dlp": {
+    "usage_fraction": 0.7,
+    "block_minutes": 10,
+    "post_block_fraction": 0.5,
+    "public_block_message": "[SECURITY] Account blocked for {minutes} minutes: prohibited-word usage limit exceeded.",
+    "immediate_block_word": "אננס",
+    "monitored_words": [
+      "פיצה",
+      "בצק",
+      "גבינה",
+      "מוצרלה",
+      "רוטב",
+      "עגבנייה",
+      "זיתים",
+      "פטריות",
+      "בצל",
+      "תירס",
+      "טונה",
+      "פפרוני",
+      "סלמי",
+      "בזיליקום",
+      "אורגנו",
+      "שום",
+      "קמח",
+      "שמרים",
+      "תנור",
+      "מגש",
+      "משולש",
+      "תוספות",
+      "קרום",
+      "אפייה",
+      "מרגריטה",
+      "נפוליטנית",
+      "קלצונה",
+      "פרמזן",
+      "ריקוטה",
+      "אננס"
+    ]
+  },
+  "anti_bot": {
+    "request_timeout_seconds": 3,
+    "cache_minutes": 10,
+    "malicious_engines_to_block": 1,
+    "api_url": "https://www.virustotal.com/api/v3/ip_addresses/{address}"
+  },
+  "tls": {
+    "minimum_version": "TLSv1_2"
+  }
+}

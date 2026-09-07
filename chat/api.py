@@ -2,10 +2,12 @@
 
 import json
 import logging
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from .auth import valid_username
+from .config import NETWORK
 from .protocol import MAX_AUTH_BYTES
 from .reputation import VirusTotalChecker
 
@@ -23,7 +25,7 @@ class ApiServer(ThreadingHTTPServer):
 
 
 class ApiHandler(BaseHTTPRequestHandler):
-    server_version = "ChatAPI/1.0"
+    server_version = NETWORK["api_server_version"]
 
     def send_json(self, status, data):
         body = json.dumps(data).encode("utf-8")
@@ -36,28 +38,40 @@ class ApiHandler(BaseHTTPRequestHandler):
     def read_json(self):
         content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if content_type != "application/json":
-            self.send_json(415, {"error": "Content-Type must be application/json."})
+            self.send_json(
+                HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+                {"error": "Content-Type must be application/json."},
+            )
             return None
 
         try:
             size = int(self.headers.get("Content-Length", ""))
         except ValueError:
-            self.send_json(400, {"error": "Invalid Content-Length."})
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length."})
             return None
         if size < 0:
-            self.send_json(400, {"error": "Invalid Content-Length."})
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "Invalid Content-Length."})
             return None
         if size > MAX_AUTH_BYTES:
-            self.send_json(413, {"error": "Request body is too large."})
+            self.send_json(
+                HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                {"error": "Request body is too large."},
+            )
             return None
 
         try:
             data = json.loads(self.rfile.read(size).decode("utf-8"))
         except (UnicodeError, ValueError, RecursionError):
-            self.send_json(400, {"error": "Request body must be valid JSON."})
+            self.send_json(
+                HTTPStatus.BAD_REQUEST,
+                {"error": "Request body must be valid JSON."},
+            )
             return None
         if not isinstance(data, dict):
-            self.send_json(400, {"error": "JSON body must be an object."})
+            self.send_json(
+                HTTPStatus.BAD_REQUEST,
+                {"error": "JSON body must be an object."},
+            )
             return None
         return data
 
@@ -66,7 +80,10 @@ class ApiHandler(BaseHTTPRequestHandler):
         if data is None:
             return None
         if set(data) != {"username", "password"}:
-            self.send_json(400, {"error": "Provide username and password."})
+            self.send_json(
+                HTTPStatus.BAD_REQUEST,
+                {"error": "Provide username and password."},
+            )
             return None
         return data["username"], data["password"]
 
@@ -76,10 +93,10 @@ class ApiHandler(BaseHTTPRequestHandler):
                 self.server.user_store.check_health()
             except Exception:
                 logger.exception("Health check failed")
-                self.send_json(503, {"status": "unavailable"})
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"status": "unavailable"})
                 return
             self.send_json(
-                200,
+                HTTPStatus.OK,
                 {
                     "status": "ok",
                     "database": "ok",
@@ -87,12 +104,12 @@ class ApiHandler(BaseHTTPRequestHandler):
                 },
             )
             return
-        self.send_json(404, {"error": "Not found."})
+        self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
 
     def do_POST(self):
         path = urlsplit(self.path).path
         if path not in ("/register", "/login"):
-            self.send_json(404, {"error": "Not found."})
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
             return
 
         decision = self.server.reputation_checker.check(self.client_address[0])
@@ -108,7 +125,7 @@ class ApiHandler(BaseHTTPRequestHandler):
         )
         if not decision.allowed:
             self.send_json(
-                403,
+                HTTPStatus.FORBIDDEN,
                 {"verdict": decision.verdict, "reason": decision.reason},
             )
             return
@@ -128,7 +145,11 @@ class ApiHandler(BaseHTTPRequestHandler):
             try:
                 self.server.user_store.create_user(username, password)
             except ValueError as error:
-                status = 409 if str(error) == "Username already exists." else 400
+                status = (
+                    HTTPStatus.CONFLICT
+                    if str(error) == "Username already exists."
+                    else HTTPStatus.BAD_REQUEST
+                )
                 logger.info(
                     "event=account source=rest action=register username=%s result=failure",
                     logged_username,
@@ -139,7 +160,7 @@ class ApiHandler(BaseHTTPRequestHandler):
                 "event=account source=rest action=register username=%s result=success",
                 logged_username,
             )
-            self.send_json(201, {"message": "Account created."})
+            self.send_json(HTTPStatus.CREATED, {"message": "Account created."})
             return
 
         authenticated, blocked_seconds = self.server.user_store.login_status(
@@ -153,7 +174,7 @@ class ApiHandler(BaseHTTPRequestHandler):
                 blocked_seconds,
             )
             self.send_json(
-                403,
+                HTTPStatus.FORBIDDEN,
                 {
                     "error": "Account temporarily blocked.",
                     "retry_after_seconds": blocked_seconds,
@@ -164,13 +185,19 @@ class ApiHandler(BaseHTTPRequestHandler):
                 "event=account source=rest action=login username=%s result=success",
                 logged_username,
             )
-            self.send_json(200, {"message": "Authenticated.", "username": username})
+            self.send_json(
+                HTTPStatus.OK,
+                {"message": "Authenticated.", "username": username},
+            )
         else:
             logger.info(
                 "event=account source=rest action=login username=%s result=failure",
                 logged_username,
             )
-            self.send_json(401, {"error": "Invalid username or password."})
+            self.send_json(
+                HTTPStatus.UNAUTHORIZED,
+                {"error": "Invalid username or password."},
+            )
 
     def log_request(self, code="-", size="-"):
         logger.info(
@@ -187,8 +214,8 @@ class ApiHandler(BaseHTTPRequestHandler):
 
 def create_api_server(
     user_store,
-    host="127.0.0.1",
-    port=8000,
+    host=NETWORK["host"],
+    port=NETWORK["api_port"],
     tls_context=None,
     reputation_checker=None,
 ):

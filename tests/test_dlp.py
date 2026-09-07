@@ -97,6 +97,7 @@ class DlpTests(unittest.TestCase):
             }
         self.assertIn("blocked_until", columns)
         self.assertIn("dlp_carryover", columns)
+        self.assertIn("password_iterations", columns)
         self.assertIn("dlp_words", tables)
 
 

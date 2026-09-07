@@ -1,9 +1,18 @@
 """Newline-delimited UTF-8 frames, bounded before decoding or buffering."""
 
-MAX_MESSAGE_BYTES = 4096
-MAX_ROOM_BYTES = 64
-MAX_AUTH_BYTES = 2048
-MAX_SERVER_MESSAGE_BYTES = MAX_MESSAGE_BYTES + 34  # username (32) + ': '
+import unicodedata
+
+from .config import LIMITS
+
+
+MAX_MESSAGE_BYTES = LIMITS["message_bytes"]
+MAX_ROOM_BYTES = LIMITS["room_bytes"]
+MAX_AUTH_BYTES = LIMITS["auth_bytes"]
+MAX_SERVER_MESSAGE_BYTES = (
+    MAX_MESSAGE_BYTES
+    + LIMITS["username_max_characters"]
+    + len(": ".encode("utf-8"))
+)
 
 
 class ProtocolError(ValueError):
@@ -17,8 +26,7 @@ class MessageTooLarge(ProtocolError):
 def validate_text(message):
     """Prevent line and terminal-control injection in displayed messages."""
     for char in message:
-        code = ord(char)
-        if code < 32 or 127 <= code <= 159:
+        if unicodedata.category(char) == "Cc":
             raise ProtocolError("Control characters are not allowed.")
 
 

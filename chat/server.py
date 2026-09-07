@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .auth import DEFAULT_USERS_DB, UserStore, valid_username
 from .api import create_api_server
+from .config import LIMITS, NETWORK
 from .dlp import (
     BLOCK_SECONDS,
     PUBLIC_BLOCK_MESSAGE,
@@ -25,11 +26,13 @@ from .reputation import VirusTotalChecker
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-HOST = "127.0.0.1"
-PORT = 55555
-API_PORT = 8000
-HANDSHAKE_TIMEOUT = 10
-ROOM_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+HOST = NETWORK["host"]
+PORT = NETWORK["chat_port"]
+API_PORT = NETWORK["api_port"]
+HANDSHAKE_TIMEOUT = NETWORK["handshake_timeout_seconds"]
+ROOM_PATTERN = re.compile(
+    rf"[A-Za-z0-9_-]{{{LIMITS['room_min_characters']},{LIMITS['room_bytes']}}}\Z"
+)
 
 # Each connected socket belongs to one room code.
 active_clients = {}
@@ -192,7 +195,7 @@ def handle_client(client_socket, user_store, tls_context=None, reputation_checke
                     )
                     logger.warning(
                         "event=account_blocked username=%s block_started=%.3f "
-                        "block_ends=%.3f duration_seconds=%d trigger=%s matched=%s",
+                        "block_ends=%.3f duration_seconds=%.3f trigger=%s matched=%s",
                         username,
                         dlp_result["blocked_until"] - BLOCK_SECONDS,
                         dlp_result["blocked_until"],

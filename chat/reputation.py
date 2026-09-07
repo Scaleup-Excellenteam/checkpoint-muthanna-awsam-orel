@@ -10,10 +10,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import timedelta
+from http import HTTPStatus
+
+from .config import ANTI_BOT
 
 
 logger = logging.getLogger(__name__)
-VIRUSTOTAL_URL = "https://www.virustotal.com/api/v3/ip_addresses/{}"
+VIRUSTOTAL_URL = ANTI_BOT["api_url"]
 
 
 @dataclass(frozen=True)
@@ -36,8 +40,8 @@ class VirusTotalChecker:
     def __init__(
         self,
         api_key=None,
-        timeout=3,
-        cache_seconds=600,
+        timeout=ANTI_BOT["request_timeout_seconds"],
+        cache_seconds=timedelta(minutes=ANTI_BOT["cache_minutes"]).total_seconds(),
         clock=time.time,
         opener=urllib.request.urlopen,
     ):
@@ -80,14 +84,14 @@ class VirusTotalChecker:
     def request_report(self, address):
         encoded_address = urllib.parse.quote(address, safe=":")
         request = urllib.request.Request(
-            VIRUSTOTAL_URL.format(encoded_address),
+            VIRUSTOTAL_URL.format(address=encoded_address),
             headers={"x-apikey": self.api_key, "Accept": "application/json"},
         )
         try:
             with self.opener(request, timeout=self.timeout) as response:
                 report = json.load(response)
         except urllib.error.HTTPError as error:
-            if error.code == 404:
+            if error.code == HTTPStatus.NOT_FOUND:
                 return self.unknown("VirusTotal has no report for this IP")
             raise
 
@@ -96,7 +100,11 @@ class VirusTotalChecker:
         malicious = int(stats.get("malicious", 0))
         suspicious = int(stats.get("suspicious", 0))
         reputation = int(attributes.get("reputation", 0))
-        verdict = "BLOCK" if malicious > 0 else "ALLOW"
+        verdict = (
+            "BLOCK"
+            if malicious >= ANTI_BOT["malicious_engines_to_block"]
+            else "ALLOW"
+        )
         reason = (
             f"VirusTotal malicious={malicious}, suspicious={suspicious}, "
             f"reputation={reputation}"

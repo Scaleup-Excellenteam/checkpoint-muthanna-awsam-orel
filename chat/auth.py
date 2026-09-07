@@ -12,13 +12,20 @@ import time
 from contextlib import closing
 from pathlib import Path
 
+from .config import AUTHENTICATION, LIMITS
 from .dlp import BLOCK_SECONDS, POST_BLOCK_CARRYOVER, USAGE_LIMIT
 
 DEFAULT_USERS_DB = Path(__file__).resolve().parent.parent / "data" / "users.db"
-PASSWORD_ITERATIONS = 600_000
-MIN_PASSWORD_LENGTH = 8
-MAX_PASSWORD_BYTES = 256
-USERNAME_PATTERN = re.compile(r"[A-Za-z0-9_-]{3,32}\Z")
+PASSWORD_ITERATIONS = AUTHENTICATION["pbkdf2_iterations"]
+LEGACY_PASSWORD_ITERATIONS = AUTHENTICATION["legacy_pbkdf2_iterations"]
+SALT_BYTES = AUTHENTICATION["salt_bytes"]
+MIN_PASSWORD_LENGTH = LIMITS["password_min_characters"]
+MAX_PASSWORD_BYTES = LIMITS["password_max_utf8_bytes"]
+MIN_USERNAME_LENGTH = LIMITS["username_min_characters"]
+MAX_USERNAME_LENGTH = LIMITS["username_max_characters"]
+USERNAME_PATTERN = re.compile(
+    rf"[A-Za-z0-9_-]{{{MIN_USERNAME_LENGTH},{MAX_USERNAME_LENGTH}}}\Z"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -38,8 +45,8 @@ def valid_password(password):
     return len(password) >= MIN_PASSWORD_LENGTH and byte_count <= MAX_PASSWORD_BYTES
 
 
-def password_hash(password, salt):
-    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PASSWORD_ITERATIONS)
+def password_hash(password, salt, iterations=PASSWORD_ITERATIONS):
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
 
 
 class UserStore:
@@ -51,7 +58,8 @@ class UserStore:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS users "
                 "(username TEXT PRIMARY KEY, salt BLOB NOT NULL, password_hash BLOB NOT NULL, "
-                "blocked_until REAL NOT NULL DEFAULT 0, dlp_carryover INTEGER NOT NULL DEFAULT 0)"
+                "blocked_until REAL NOT NULL DEFAULT 0, dlp_carryover INTEGER NOT NULL DEFAULT 0, "
+                f"password_iterations INTEGER NOT NULL DEFAULT {LEGACY_PASSWORD_ITERATIONS})"
             )
             columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
             if "blocked_until" not in columns:
@@ -62,6 +70,11 @@ class UserStore:
                 connection.execute(
                     "ALTER TABLE users ADD COLUMN dlp_carryover INTEGER NOT NULL DEFAULT 0"
                 )
+            if "password_iterations" not in columns:
+                connection.execute(
+                    "ALTER TABLE users ADD COLUMN password_iterations INTEGER NOT NULL "
+                    f"DEFAULT {LEGACY_PASSWORD_ITERATIONS}"
+                )
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS dlp_words "
                 "(username TEXT NOT NULL, word TEXT NOT NULL, "
@@ -69,21 +82,29 @@ class UserStore:
             )
             connection.commit()
         # Missing accounts still perform the same expensive verification.
-        self._dummy_salt = secrets.token_bytes(16)
-        self._dummy_hash = secrets.token_bytes(32)
+        self._dummy_salt = secrets.token_bytes(SALT_BYTES)
+        self._dummy_hash = secrets.token_bytes(hashlib.sha256().digest_size)
 
     def create_user(self, username, password):
         if not valid_username(username):
-            raise ValueError("Username must contain 3-32 ASCII letters, digits, '_' or '-'.")
+            raise ValueError(
+                f"Username must contain {MIN_USERNAME_LENGTH}-{MAX_USERNAME_LENGTH} "
+                "ASCII letters, digits, '_' or '-'."
+            )
         if not valid_password(password):
-            raise ValueError("Password must contain at least 8 characters and at most 256 UTF-8 bytes.")
-        salt = secrets.token_bytes(16)
+            raise ValueError(
+                f"Password must contain at least {MIN_PASSWORD_LENGTH} characters "
+                f"and at most {MAX_PASSWORD_BYTES} UTF-8 bytes."
+            )
+        salt = secrets.token_bytes(SALT_BYTES)
         digest = password_hash(password, salt)
         try:
             with closing(sqlite3.connect(self.path)) as connection:
                 connection.execute(
-                    "INSERT INTO users (username, salt, password_hash) VALUES (?, ?, ?)",
-                    (username, salt, digest),
+                    "INSERT INTO users "
+                    "(username, salt, password_hash, password_iterations) "
+                    "VALUES (?, ?, ?, ?)",
+                    (username, salt, digest, PASSWORD_ITERATIONS),
                 )
                 connection.commit()
         except sqlite3.IntegrityError:
@@ -99,13 +120,21 @@ class UserStore:
             return False, 0
         with closing(sqlite3.connect(self.path)) as connection:
             record = connection.execute(
-                "SELECT salt, password_hash FROM users WHERE username = ?", (username,)
+                "SELECT salt, password_hash, password_iterations FROM users "
+                "WHERE username = ?",
+                (username,),
             ).fetchone()
         if record is None:
-            salt, expected = self._dummy_salt, self._dummy_hash
+            salt, expected, iterations = (
+                self._dummy_salt,
+                self._dummy_hash,
+                PASSWORD_ITERATIONS,
+            )
         else:
-            salt, expected = record
-        matches = hmac.compare_digest(password_hash(password, salt), expected)
+            salt, expected, iterations = record
+        matches = hmac.compare_digest(
+            password_hash(password, salt, iterations), expected
+        )
         if record is None or not matches:
             return False, 0
         remaining, _ = self.block_status(username)

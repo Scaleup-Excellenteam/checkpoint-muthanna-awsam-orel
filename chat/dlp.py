@@ -2,48 +2,18 @@
 
 import math
 import unicodedata
+from datetime import timedelta
+
+from .config import DLP
 
 
-PIZZA_WORDS = frozenset({
-    "פיצה",
-    "בצק",
-    "גבינה",
-    "מוצרלה",
-    "רוטב",
-    "עגבנייה",
-    "זיתים",
-    "פטריות",
-    "בצל",
-    "תירס",
-    "טונה",
-    "פפרוני",
-    "סלמי",
-    "בזיליקום",
-    "אורגנו",
-    "שום",
-    "קמח",
-    "שמרים",
-    "תנור",
-    "מגש",
-    "משולש",
-    "תוספות",
-    "קרום",
-    "אפייה",
-    "מרגריטה",
-    "נפוליטנית",
-    "קלצונה",
-    "פרמזן",
-    "ריקוטה",
-    "אננס",
-})
-
-IMMEDIATE_BLOCK_WORD = "אננס"
-USAGE_LIMIT = math.floor(len(PIZZA_WORDS) * 0.70)
-BLOCK_SECONDS = 10 * 60
-POST_BLOCK_CARRYOVER = math.ceil(USAGE_LIMIT * 0.50)
-PUBLIC_BLOCK_MESSAGE = (
-    "[SECURITY] Account blocked for 10 minutes: "
-    "prohibited-word usage limit exceeded."
+PIZZA_WORDS = frozenset(DLP["monitored_words"])
+IMMEDIATE_BLOCK_WORD = DLP["immediate_block_word"]
+USAGE_LIMIT = math.floor(len(PIZZA_WORDS) * DLP["usage_fraction"])
+BLOCK_SECONDS = timedelta(minutes=DLP["block_minutes"]).total_seconds()
+POST_BLOCK_CARRYOVER = math.ceil(USAGE_LIMIT * DLP["post_block_fraction"])
+PUBLIC_BLOCK_MESSAGE = DLP["public_block_message"].format(
+    minutes=DLP["block_minutes"]
 )
 
 

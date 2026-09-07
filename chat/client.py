@@ -5,14 +5,15 @@ import secrets
 import socket
 import threading
 
+from .config import LIMITS, NETWORK
 from .protocol import (
     MAX_AUTH_BYTES, MAX_MESSAGE_BYTES, MAX_ROOM_BYTES, MAX_SERVER_MESSAGE_BYTES,
     ProtocolError, read_message, send_message,
 )
 from .transport import client_context
 
-HOST = "127.0.0.1"
-PORT = 55555
+HOST = NETWORK["host"]
+PORT = NETWORK["chat_port"]
 
 
 def receive_messages(stream):
@@ -69,7 +70,13 @@ def run_session(action, host, port, tls_context, server_hostname):
 
     try:
         if action == "register":
-            print("Username: 3-32 letters/digits/_/-. Password: at least 8 characters, up to 256 UTF-8 bytes.")
+            print(
+                "Username: "
+                f"{LIMITS['username_min_characters']}-{LIMITS['username_max_characters']} "
+                "letters/digits/_/-. Password: at least "
+                f"{LIMITS['password_min_characters']} characters, up to "
+                f"{LIMITS['password_max_utf8_bytes']} UTF-8 bytes."
+            )
         username = input("Enter your username: ").strip()
         password = getpass.getpass("Password: ")
         if action == "register":
@@ -79,9 +86,9 @@ def run_session(action, host, port, tls_context, server_hostname):
         else:
             room = input("Room code (Enter to create a new room): ").strip()
             if not room:
-                room = secrets.token_urlsafe(12)
+                room = secrets.token_urlsafe(NETWORK["generated_room_token_bytes"])
 
-        client_socket.settimeout(10)
+        client_socket.settimeout(NETWORK["handshake_timeout_seconds"])
         client_socket.connect((host, port))
         if tls_context is not None:
             client_socket = tls_context.wrap_socket(client_socket, server_hostname=server_hostname or host)
@@ -123,7 +130,7 @@ def run_session(action, host, port, tls_context, server_hostname):
             # A failed connection may already be disconnected.
             pass
         if receive_thread is not None:
-            receive_thread.join(timeout=2)
+            receive_thread.join(timeout=NETWORK["client_thread_join_timeout_seconds"])
         if stream is not None:
             stream.close()
         client_socket.close()

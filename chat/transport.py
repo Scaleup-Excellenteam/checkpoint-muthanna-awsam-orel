@@ -3,6 +3,10 @@
 import ipaddress
 import ssl
 
+from .config import TLS
+
+
+MINIMUM_TLS_VERSION = ssl.TLSVersion[TLS["minimum_version"]]
 
 def require_local_address(host):
     try:
@@ -20,7 +24,7 @@ def server_context(host, certfile=None, keyfile=None):
         require_local_address(host)
         return None
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.minimum_version = MINIMUM_TLS_VERSION
     context.load_cert_chain(certfile, keyfile)
     return context
 
@@ -32,5 +36,5 @@ def client_context(host, tls=False, cafile=None):
         require_local_address(host)
         return None
     context = ssl.create_default_context(cafile=cafile)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.minimum_version = MINIMUM_TLS_VERSION
     return context
