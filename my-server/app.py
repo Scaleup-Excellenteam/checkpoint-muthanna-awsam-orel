@@ -14,9 +14,16 @@ PORT = 55555
 active_clients = {}
 clients_lock = threading.Lock()
 
+def get_client_address(client_socket):
+    try:
+        return client_socket.getpeername()
+    except OSError:
+        return "unknown client"
+
 def broadcast_message(message, sending_client):
     """Send only to other clients in the sender's room."""
     failed_clients = []
+    recipients = 0
     # Serialize writes so messages from different threads cannot overlap.
     with clients_lock:
         room = active_clients.get(sending_client)
@@ -25,10 +32,13 @@ def broadcast_message(message, sending_client):
         for client, client_room in active_clients.items():
             if client != sending_client and client_room == room:
                 try:
-                    logger.info(f"Broadcasting message to {client.getpeername()}: {message}")
                     send_message(client, message)
+                    recipients += 1
                 except OSError:
+                    logger.warning("Failed to send a message to %s", get_client_address(client))
                     failed_clients.append(client)
+
+    logger.info("Broadcasted a %d-character message to %d client(s) in room %s", len(message), recipients, room)
 
     for client in failed_clients:
         remove_client(client)
@@ -45,12 +55,20 @@ def handle_client(client_socket):
         with clients_lock:
             send_message(client_socket, f"[ROOM] Joined room: {room}")
             active_clients[client_socket] = room
+        logger.info("Client %s joined room %s", get_client_address(client_socket), room)
 
         for message in messages:
+            logger.info(
+                "Received a %d-character message from %s in room %s",
+                len(message),
+                get_client_address(client_socket),
+                room,
+            )
             broadcast_message(message, client_socket)
-    except (OSError, UnicodeError):
-        pass
+    except (OSError, UnicodeError) as error:
+        logger.warning("Client %s disconnected with error: %s", get_client_address(client_socket), error)
     finally:
+        logger.info("Closing connection for client %s", get_client_address(client_socket))
         remove_client(client_socket)
 
 def remove_client(client_socket):
@@ -68,11 +86,13 @@ def start_server():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
+    logger.info("Server started on %s:%d", HOST, PORT)
     print(f"[STARTING] Server is listening on {HOST}:{PORT}...")
 
     while True:
         # Accept a new client connection
         client_socket, client_address = server.accept()
+        logger.info("Accepted connection from %s", client_address)
         print(f"[NEW CONNECTION] Connected with {client_address}")
 
         # Start a new thread dedicated to handling this specific client
