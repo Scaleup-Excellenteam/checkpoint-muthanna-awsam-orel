@@ -202,11 +202,20 @@ def handle_client(
                 message = read_message(stream, MAX_MESSAGE_BYTES)
                 if message is None:
                     break
+                
+                url_decision = reputation_checker.check_urls_in_text(message)
                 matched_words = find_sensitive_words(message)
+                immediate_block = requires_immediate_block(matched_words)
+
+                if url_decision is not None and not url_decision.allowed:
+                    logger.warning("event=malicious_url_detected username=%s reason='%s'", username, url_decision.reason)
+                    matched_words.add("malicious_url")
+                    immediate_block = True
+
                 dlp_result = user_store.record_dlp_usage(
                     username,
                     matched_words,
-                    requires_immediate_block(matched_words),
+                    immediate_block,
                 )
                 with clients_lock:
                     session = active_clients.get(client_socket)
