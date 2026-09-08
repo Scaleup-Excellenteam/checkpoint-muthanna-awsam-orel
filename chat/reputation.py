@@ -3,7 +3,6 @@
 import ipaddress
 import json
 import logging
-import os
 import threading
 import time
 import urllib.error
@@ -13,7 +12,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from http import HTTPStatus
 
-from .config import ANTI_BOT
+from .config import ANTI_BOT, environment_value
 
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,9 @@ class VirusTotalChecker:
         clock=time.time,
         opener=urllib.request.urlopen,
     ):
-        self.api_key = api_key if api_key is not None else os.getenv("VIRUSTOTAL_API_KEY")
+        self.api_key = (
+            api_key if api_key is not None else environment_value("VIRUSTOTAL_API_KEY")
+        )
         self.timeout = timeout
         self.cache_seconds = cache_seconds
         self.clock = clock

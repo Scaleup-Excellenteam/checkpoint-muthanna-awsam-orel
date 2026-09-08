@@ -8,7 +8,7 @@ from pathlib import Path
 from chat.api import create_api_server
 from chat.auth import UserStore
 from chat.dlp import IMMEDIATE_BLOCK_WORD, PUBLIC_BLOCK_MESSAGE
-from chat.reputation import ReputationDecision
+from chat.reputation import ReputationDecision, VirusTotalChecker
 
 
 class ApiTests(unittest.TestCase):
@@ -16,7 +16,9 @@ class ApiTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.store = UserStore(Path(self.directory.name) / "users.db")
-        self.server = create_api_server(self.store, port=0)
+        self.server = create_api_server(
+            self.store, port=0, reputation_checker=VirusTotalChecker(api_key="")
+        )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.addCleanup(self.stop_server)
@@ -56,6 +58,12 @@ class ApiTests(unittest.TestCase):
             body,
             {"status": "ok", "database": "ok", "anti_bot": "not_configured"},
         )
+
+    def test_health_reports_configured_key(self):
+        self.server.reputation_checker = VirusTotalChecker(api_key="test-key")
+        status, _, body = self.request("GET", "/health")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["anti_bot"], "configured")
 
     def test_register_then_login(self):
         credentials = {"username": "ApiUser", "password": "a strong API password"}

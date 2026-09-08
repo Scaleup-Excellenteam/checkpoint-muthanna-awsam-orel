@@ -275,7 +275,10 @@ function appendMessage(message) {
   content.append(meta, bubble);
   row.append(avatar, content);
   $("#messages").append(row);
-  $("#messages").scrollTop = $("#messages").scrollHeight;
+  requestAnimationFrame(() => {
+    const msgs = $("#messages");
+    msgs.scrollTop = msgs.scrollHeight;
+  });
 }
 
 async function sendMessage(event) {

@@ -39,6 +39,12 @@ Start the server:
 python -m chat.server
 ```
 
+Stop the server with `Ctrl+C` in its terminal. The listener checks for interrupts
+every `network.accept_poll_seconds` (0.5 seconds by default), including while
+waiting for the first client. In VS Code, focus the terminal and clear any text
+selection first. If an older running server is stuck, use the terminal's trash
+button to terminate that terminal, then open a new one and restart the server.
+
 Open the web application in a browser:
 
 ```text
@@ -97,9 +103,9 @@ older versions of this project. Leave it unchanged when upgrading an existing
 database. New accounts use `pbkdf2_iterations`, and each account stores its own
 work factor so future changes do not break existing passwords.
 
-The VirusTotal API key remains in the `VIRUSTOTAL_API_KEY` environment variable
-and is deliberately excluded from `config.json` so it is not committed as a
-secret.
+The VirusTotal API key can be set in the `VIRUSTOTAL_API_KEY` environment variable
+or the project-root `.env` file (excluded from Git). It is deliberately excluded
+from `config.json` so it is not committed as a secret.
 
 ## REST API and health check
 
@@ -155,12 +161,34 @@ session storage and removes it on logout or when a session is rejected.
 
 ## VirusTotal Anti-Bot check
 
+Create a `.env` file beside `config.json` containing:
+
+```dotenv
+VIRUSTOTAL_API_KEY=your-api-key
+```
+
+Then start (or restart) the server with `python -m chat.server`. The file is
+loaded automatically from the project root. Single-line values may be unquoted,
+single-quoted, or double-quoted; blank lines and comments are supported.
+An existing environment variable takes precedence over `.env`, including an
+empty variable. In PowerShell, use `Remove-Item Env:VIRUSTOTAL_API_KEY
+-ErrorAction SilentlyContinue` to remove an old override before restarting.
+Never commit your real API key.
+
 To enable reputation checks for public client IP addresses, set the environment
-variable before starting the server:
+variable instead before starting the server:
 
 ```powershell
 $env:VIRUSTOTAL_API_KEY = "your-api-key"
 python -m chat.server
+```
+
+Check `http://127.0.0.1:8000/health` for `"anti_bot": "configured"`. This confirms
+that a key was loaded, not that VirusTotal accepted it. To test a real public-IP
+lookup using the same configuration, run from the project root:
+
+```powershell
+python -c "from chat.reputation import VirusTotalChecker; print(VirusTotalChecker().check('8.8.8.8'))"
 ```
 
 The server blocks an address when at least one VirusTotal engine reports it as
@@ -258,6 +286,106 @@ limits, DLP normalization and blocking, account-wide disconnection, persistent
 quota state, Anti-Bot caching and fail-open behavior, and verified TLS chat.
 TLS integration tests require OpenSSL; Git for Windows' bundled OpenSSL is also
 detected.
+
+## Two local LLM agents (optional)
+
+The optional runner connects to the existing REST API as two independent users.
+Both agents share one local Ollama model, called sequentially, with separate roles
+and histories. You can join their room in the browser to watch. No additional
+Python packages or changes to the server/database schema are needed.
+
+The small default model minimizes memory use, but language quality is not
+guaranteed. In local acceptance testing, `qwen3:1.7b` sometimes repeated itself
+or switched to Chinese despite the Hebrew prompt. The runner checks message
+delivery, not fluency. For a larger model option, download `qwen3:4b` with
+`ollama pull qwen3:4b` and select it with `--model qwen3:4b`; this uses additional
+disk space and memory. Both agents still use the same model sequentially.
+
+Install [Ollama for Windows](https://ollama.com/download/windows), open a new
+PowerShell window, and download the default small model once:
+
+```powershell
+ollama pull qwen3:1.7b
+```
+
+Ollama must be running at `http://127.0.0.1:11434`. The desktop installation
+normally starts it automatically; if necessary, run `ollama serve` in a separate
+terminal. The model download is about 1.4 GB; actual RAM usage is higher and
+generation speed depends on your hardware. Inference is local and requires no
+API key or per-request payment.
+
+Start the chat server normally (`python -m chat.server`). In another terminal,
+from the project root, run:
+
+```powershell
+python -m tools.llm_chat_test --scenario all
+```
+
+The runner checks the chat service, public limits and installed model before
+creating accounts. It prints the room name and browser URL for each scenario.
+Log in with your own browser account, join that room, then press Enter in the
+runner's terminal. Observer messages do not trigger the agents or enter their
+model histories.
+
+Scenarios:
+
+| Option | Behavior |
+| --- | --- |
+| `--scenario chat` | 20 alternating Hebrew messages: one agent proposes an activity, the other asks questions and suggests improvements |
+| `--scenario security` | Fixed UTF-8 size boundary, repeated/distinct DLP quota, and immediate-block checks; Ollama is not required |
+| `--scenario all` | Chat followed by all three security scenarios; the default |
+
+For unattended runs or another local model:
+
+```powershell
+python -m tools.llm_chat_test --scenario all --no-pause
+python -m tools.llm_chat_test --scenario chat --model qwen3:1.7b --messages 6 --no-pause
+python -m tools.llm_chat_test --scenario security --no-pause
+```
+
+Use `--server-url` and `--ollama-url` to override the service addresses. HTTPS uses
+normal certificate verification. The server must use the same project version
+and configuration as the runner; the private DLP policy is read locally and is
+never included in model prompts. Security scenarios deliberately send configured
+DLP terms through the chat, so allowed test terms are visible to room observers.
+
+Each scenario creates a fresh pair of accounts and a unique room. Accounts remain
+in the configured database after logout because the application has no account
+deletion API. Rooms/history retain the server's existing lifetime. Only test
+accounts are deliberately blocked; the runner does not reset DLP state or change
+server policy. TCP, TLS, load and block-expiry coverage remains in the regular
+test suite.
+
+Each model call has a 150-token output budget and at most 10 recent messages of
+history. Line breaks are converted to spaces for the chat protocol. A turn only
+completes when the other account reads the exact text and sender from the server,
+with an increasing message ID. Rejected security messages are checked for absence
+throughout the delivery window. No send is automatically retried, including when
+the connection fails after submission.
+
+Timeouts are configurable: `--model-timeout 120`, `--delivery-timeout 10` and
+`--poll-interval 0.5` (seconds). For slow CPU inference, increase the model timeout.
+An unexpected block during free conversation fails that scenario; it does not by
+itself establish a server bug. A failed assertion allows the next independent
+scenario to run; infrastructure failures or Ctrl+C stop the run. Cleanup logs out
+active test sessions on a best-effort basis.
+
+Results are saved incrementally to `data/llm-tests/<run-id>/report.json` and
+`transcript.txt`, including partial runs, message IDs, generation/delivery timing,
+HTTP statuses, cleanup results, and failure source. Passwords and bearer tokens
+are excluded. Override the parent directory with `--output-dir`.
+
+Exit codes: `0` = all selected scenarios passed, `1` = an assertion failed,
+`2` = infrastructure/configuration failure or interrupted/incomplete execution.
+The runner verifies transport behavior and security assertions; it does not use
+another LLM to grade conversation quality.
+
+The regular unittest discovery also runs the runner tests against a real local
+REST server and a fake Ollama HTTP service, without downloading a model:
+
+```powershell
+python -m unittest tests.test_llm_chat_tool -v
+```
 
 ## Current limitations
 
