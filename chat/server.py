@@ -41,6 +41,11 @@ def list_active_rooms():
     with clients_lock:
         return sorted({session["room"] for session in active_clients.values()})
 
+def list_room_members(room):
+    """Return a set of usernames connected to a room via TCP."""
+    with clients_lock:
+        return {session["username"] for session in active_clients.values() if session["room"] == room}
+
 
 def client_ip(client_socket):
     try:
@@ -311,6 +316,7 @@ def start_server(
         list_active_rooms,
         disconnect_account,
         broadcast_to_room,
+        list_room_members,
     )
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:

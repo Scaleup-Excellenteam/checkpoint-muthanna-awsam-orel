@@ -40,6 +40,7 @@ class ApiServer(ThreadingHTTPServer):
         room_provider,
         block_callback=None,
         tcp_broadcast=None,
+        tcp_room_members=None,
         clock=time.time,
     ):
         super().__init__(address, ApiHandler)
@@ -48,6 +49,7 @@ class ApiServer(ThreadingHTTPServer):
         self.room_provider = room_provider
         self.block_callback = block_callback or (lambda username: None)
         self.tcp_broadcast = tcp_broadcast or (lambda room, message: 0)
+        self.tcp_room_members = tcp_room_members or (lambda room: set())
         self.clock = clock
         self.state_lock = threading.RLock()
         self.sessions = {}
@@ -123,15 +125,16 @@ class ApiServer(ThreadingHTTPServer):
             result = []
             for name in names:
                 room = self.web_rooms.get(name, {"sessions": set(), "messages": []})
-                members = {
+                web_members = {
                     self.sessions[token]["username"]
                     for token in room["sessions"]
                     if token in self.sessions
                 }
+                tcp_members = self.tcp_room_members(name)
                 result.append(
                     {
                         "name": name,
-                        "members": len(members),
+                        "members": len(web_members | tcp_members),
                         "messages": len(room["messages"]),
                     }
                 )
@@ -638,6 +641,7 @@ def create_api_server(
     room_provider=None,
     block_callback=None,
     tcp_broadcast=None,
+    tcp_room_members=None,
 ):
     reputation_checker = reputation_checker or VirusTotalChecker()
     room_provider = room_provider or (lambda: [])
@@ -648,6 +652,7 @@ def create_api_server(
         room_provider,
         block_callback,
         tcp_broadcast,
+        tcp_room_members,
     )
     if tls_context is not None:
         server.socket = tls_context.wrap_socket(server.socket, server_side=True)
