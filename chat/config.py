@@ -1,11 +1,40 @@
 """Load and validate the editable server configuration."""
 
 import json
+import os
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
+ENV_PATH = PROJECT_ROOT / ".env"
+
+
+def environment_value(name):
+    """Read an environment setting, falling back to a single-line .env value."""
+    if name in os.environ:
+        return os.environ[name]
+    try:
+        lines = ENV_PATH.read_text(encoding="utf-8-sig").splitlines()
+    except FileNotFoundError:
+        return None
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        key, separator, value = line.partition("=")
+        if not separator or key.strip() != name:
+            continue
+        value = value.strip()
+        if value.startswith(("'", '"')):
+            closing_quote = value.find(value[0], 1)
+            if closing_quote < 0:
+                raise ValueError(f"Unclosed quote for {name} in .env")
+            return value[1:closing_quote]
+        return value.split(" #", 1)[0].rstrip()
+    return None
 
 
 def _require_mapping(config, name):
@@ -51,6 +80,7 @@ def validate_config(config):
     _require_integer(network, "chat_port", 0, 65535)
     _require_integer(network, "api_port", 0, 65535)
     _require_number(network, "handshake_timeout_seconds", 0.1)
+    _require_number(network, "accept_poll_seconds", 0.01, 1)
     _require_number(network, "client_thread_join_timeout_seconds", 0.1)
     _require_integer(network, "generated_room_token_bytes", 1)
     _require_text(network, "api_server_version")

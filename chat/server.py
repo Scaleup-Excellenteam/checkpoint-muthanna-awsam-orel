@@ -317,6 +317,8 @@ def start_server(
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((host, port))
         server.listen()
+        # Return to Python regularly so Windows can process a pending Ctrl+C.
+        server.settimeout(NETWORK["accept_poll_seconds"])
     except Exception:
         api_server.server_close()
         server.close()
@@ -331,7 +333,10 @@ def start_server(
 
     try:
         while True:
-            client_socket, client_address = server.accept()
+            try:
+                client_socket, client_address = server.accept()
+            except socket.timeout:
+                continue
             logger.info("Accepted connection from %s", client_address)
             print(f"[NEW CONNECTION] Connected with {client_address}")
             thread = threading.Thread(
@@ -347,8 +352,12 @@ def start_server(
                 daemon=True,
             )
             thread.start()
+    except KeyboardInterrupt:
+        print("\n[STOPPING] Server shutting down...")
+        logger.info("Server stopped by keyboard interrupt")
     finally:
         api_server.shutdown()
+        api_thread.join(timeout=NETWORK["client_thread_join_timeout_seconds"])
         api_server.server_close()
         server.close()
 

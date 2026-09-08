@@ -1,10 +1,12 @@
 import io
 import json
+import os
 import socket
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from chat import server as chat_server
 from chat.auth import UserStore
@@ -13,6 +15,42 @@ from tests.helpers import read_messages
 
 
 class ReputationTests(unittest.TestCase):
+    def test_dotenv_key_is_used_in_request(self):
+        report = {"data": {"attributes": {"last_analysis_stats": {"malicious": 0}}}}
+
+        def open_report(request, timeout):
+            self.assertEqual(request.get_header("X-apikey"), "test-key")
+            return io.BytesIO(json.dumps(report).encode())
+
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            for value in ("test-key", "'test-key'", '"test-key"'):
+                with self.subTest(value=value):
+                    env_path.write_text(
+                        f"# Local settings\n\nexport VIRUSTOTAL_API_KEY = {value} # comment\n",
+                        encoding="utf-8-sig",
+                    )
+                    with patch("chat.config.ENV_PATH", env_path), patch.dict(os.environ, {}, clear=True):
+                        checker = VirusTotalChecker(opener=open_report)
+                        self.assertEqual(checker.status, "configured")
+                        self.assertEqual(checker.check("8.8.8.8").verdict, "ALLOW")
+
+    def test_environment_and_explicit_key_override_dotenv(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            env_path.write_text("VIRUSTOTAL_API_KEY=file-key\n", encoding="utf-8")
+            with patch("chat.config.ENV_PATH", env_path):
+                for value in ("environment-key", ""):
+                    with self.subTest(value=value), patch.dict(os.environ, {"VIRUSTOTAL_API_KEY": value}):
+                        self.assertEqual(VirusTotalChecker().api_key, value)
+                        self.assertEqual(VirusTotalChecker(api_key="explicit").api_key, "explicit")
+                        self.assertEqual(VirusTotalChecker(api_key="").status, "not_configured")
+
+    def test_missing_dotenv_keeps_key_optional(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("chat.config.ENV_PATH", Path(directory) / ".env"), patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(VirusTotalChecker().status, "not_configured")
+
     def test_private_address_is_allowed_without_a_network_call(self):
         def fail_if_called(*args, **kwargs):
             raise AssertionError("VirusTotal must not be called for a private address")

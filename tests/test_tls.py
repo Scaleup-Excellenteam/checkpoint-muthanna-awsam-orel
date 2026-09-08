@@ -16,6 +16,7 @@ from chat import server as chat_server
 from chat.api import create_api_server
 from chat.auth import UserStore
 from chat.protocol import send_message
+from chat.reputation import VirusTotalChecker
 from tests.helpers import read_messages
 from chat.transport import client_context, server_context
 
@@ -107,7 +108,10 @@ class TLSIntegrationTests(unittest.TestCase):
         self.assertEqual(next(received), "NewTLSUser: hello")
 
     def test_health_api_over_verified_tls(self):
-        api_server = create_api_server(self.store, port=0, tls_context=self.context)
+        api_server = create_api_server(
+            self.store, port=0, tls_context=self.context,
+            reputation_checker=VirusTotalChecker(api_key=""),
+        )
         api_thread = threading.Thread(target=api_server.serve_forever, daemon=True)
         api_thread.start()
         try:
