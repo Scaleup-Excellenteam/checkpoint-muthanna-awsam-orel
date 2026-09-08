@@ -21,7 +21,7 @@ def server_context(host, certfile=None, keyfile=None):
     if bool(certfile) != bool(keyfile):
         raise ValueError("Supply both --cert and --key.")
     if not certfile:
-        require_local_address(host)
+        # require_local_address(host)
         return None
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = MINIMUM_TLS_VERSION
@@ -33,7 +33,7 @@ def client_context(host, tls=False, cafile=None):
     if cafile and not tls:
         raise ValueError("--cafile requires --tls.")
     if not tls:
-        require_local_address(host)
+        # require_local_address(host)
         return None
     context = ssl.create_default_context(cafile=cafile)
     context.minimum_version = MINIMUM_TLS_VERSION
